@@ -75,15 +75,22 @@ df['date_str'] = np.where(df['cum_count'] > 1, df['date_str'] + '_' + df['cum_co
 
 path = r'C:\Users\Darth\Desktop\Writings Recordings\UHJ\0 - AUTO_GENERATE_FOLDERS\unused_folders'
 
-if (os.path.exists(path)):
-    shutil.rmtree(path)
-os.mkdir(path)
+#if (os.path.exists(path)):
+#    shutil.rmtree(path)
+#os.mkdir(path)
 
 # Okay. Now, I need to check for the ones that have already been completed so it doesn't generate them again. 
 subfolders = pd.DataFrame([ f.path for f in os.scandir(uhj_recordings_folder) if f.is_dir() ])
-subfolders[0] = subfolders[0].str.extract(r'(\d{0,4}-\d{0,2}-\d{0,2})')
+subfolders[0] = subfolders[0].str.extract(r'(\d{0,4}-\d{0,2}-\d{0,2}.*?)\s')
+
+
+# I also need to check for files which have already been downloaded but have not yet been recorded so it doesn't donwload them again 
+downloads = pd.DataFrame([f.path for f in os.scandir(path) if f.is_dir()])
+downloads[0] = downloads[0].str.extract(r'(\d{0,4}-\d{0,2}-\d{0,2}.*?)\s')
+
 
 df = df.loc[~df['date_str'].isin(subfolders[0])]
+df = df.loc[~df['date_str'].isin(downloads[0])]
 
 rcount = 0
 for row in df.iterrows():
