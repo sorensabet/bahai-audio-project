@@ -1,0 +1,162 @@
+import os 
+import re
+import numpy as np
+import pandas as pd
+import PyPDF2
+
+os.chdir(r'C:\Users\Darth\Documents\Programming Projects\Hidden Words Description Generation')
+
+try:
+    from xml.etree.cElementTree import XML
+except ImportError:
+    from xml.etree.ElementTree import XML
+import zipfile
+
+
+"""
+Module that extract text from MS XML Word document (.docx).
+(Inspired by python-docx <https://github.com/mikemaccana/python-docx>)
+"""
+
+WORD_NAMESPACE = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
+PARA = WORD_NAMESPACE + 'p'
+TEXT = WORD_NAMESPACE + 't'
+
+
+def get_docx_text(path):
+    """
+    Take the path of a docx file as argument, return the text in unicode.
+    """
+    document = zipfile.ZipFile(path)
+    xml_content = document.read('word/document.xml')
+    document.close()
+    tree = XML(xml_content)
+
+    paragraphs = []
+    for paragraph in tree.getiterator(PARA):
+        texts = [node.text
+                 for node in paragraph.getiterator(TEXT)
+                 if node.text]
+        if texts:
+            paragraphs.append(''.join(texts))
+
+    return '\n\n'.join(paragraphs)
+
+def o(numb):
+    if numb < 20: #determining suffix for < 20
+        if numb == 1: 
+            suffix = 'st'
+        elif numb == 2:
+            suffix = 'nd'
+        elif numb == 3:
+            suffix = 'rd'
+        else:
+            suffix = 'th'  
+    else:   #determining suffix for > 20
+        tens = str(numb)
+        tens = tens[-2]
+        unit = str(numb)
+        unit = unit[-1]
+        if tens == "1":
+           suffix = "th"
+        else:
+            if unit == "1": 
+                suffix = 'st'
+            elif unit == "2":
+                suffix = 'nd'
+            elif unit == "3":
+                suffix = 'rd'
+            else:
+                suffix = 'th'
+    return str(numb)+ suffix
+
+def makefile(path, text):
+    with open(path + '\description.txt',"w") as file: 
+        file.write(text)
+    
+
+
+arabic_text = get_docx_text('hidden-words-arabic.docx')
+persian_text = get_docx_text('hidden-words-persian.docx')
+
+
+df = pd.DataFrame(columns={'text', 'language'})
+df.loc[0, 'text'] = arabic_text
+df.loc[0, 'language'] = 'arabic'
+df.loc[1, 'text'] = persian_text
+df.loc[1, 'language'] = 'persian'
+df['len'] = df['text'].str.split().str.len()
+
+# Okay steps: 
+# 1. Split arabic text into numbers and paragraphs 
+# 2. Split persian text into numbers and paragraphs 
+
+df = df['text'].str.extractall('\d{1,2}\.(.*?)(?=\d{1,2}\.)', flags=re.MULTILINE | re.DOTALL)
+df.reset_index(inplace=True)
+df.rename(columns={'level_0': 'language', 'match': 'number', 0: 'text'}, inplace=True)
+df['number'] += 1
+df['language'] = np.where(df['language']==0, 'arabic', 'persian')
+
+# Okay, now that I have this, what's the next step? 
+# For every folder in the Hidden Words directory 
+# Go through and generate the filename, the description, and the starting list of tags 
+
+# Step 2. Generate the text to be written to each file 
+# Step 3. Write the data as a text file 
+
+arabic_dir = r'C:\Users\Darth\Desktop\Writings Recordings\Bahaullah\The Hidden Words\Part 1. From the Arabic'
+persian_dir = r'C:\Users\Darth\Desktop\Writings Recordings\Bahaullah\The Hidden Words\Part 2. From the Persian'
+
+ar_df = df.loc[df['language'] == 'arabic'][['number', 'text']]
+ar_df.index= ar_df['number']
+ar_df.drop(columns={'number'}, inplace=True)
+
+pr_df = df.loc[df['language'] == 'persian'][['number', 'text']]
+pr_df.index = pr_df['number']
+pr_df.drop(columns={'number'}, inplace=True)
+
+desc_body = 'Revealed by Baha\'u\'llah and translated by Shoghi Effendi. The full text of The Hidden Words is available at:\nhttps://www.bahai.org/library/authoritative-texts/bahaullah/hidden-words/hidden-words.pdf?5637080f'
+
+# Check arabic directory first 
+for i in range(42,72): 
+    title = 'Bahá\'u\'lláh - The Hidden Words - Arabic # ' + str(i) + '\n\n'
+    desc_intro = 'This is the ' + o(i) + ' passage of the Arabic Hidden Words, ' 
+    hw = ar_df.iloc[i-1]['text']+ '\n\n'
+    tags = 'Tags:\n\nBahá\'u\'lláh, Hidden Words, Audiobook, Reading, Bahai Audio Project, Arabic Hidden Words # ' + str(i) + ','
+    
+    
+    full_desc = title + desc_intro + desc_body + hw + tags
+
+    if (os.path.exists(arabic_dir + '\A' + str(i) + '\\')):
+        print('Found folder: A' + str(i))
+        makefile(arabic_dir + '\A' + str(i) + '\\', full_desc)
+    elif (os.path.exists(arabic_dir + '\D-A' + str(i)+ '\\')):
+        print('Found folder: D-A' + str(i))
+        makefile(arabic_dir + '\D-A' + str(i)+ '\\', full_desc)
+    else:
+        print('Error: Could not find folder: A' + str(i))
+        print(arabic_dir + '\A' + str(i))
+        print(arabic_dir + '\D-A' + str(i))
+        
+# Check persian directory  
+for i in range(1,83): 
+    title = 'Bahá\'u\'lláh - The Hidden Words - Persian # ' + str(i) + '\n\n'
+    desc_intro = 'This is the ' + o(i) + ' passage of the Persian Hidden Words, ' 
+    hw = pr_df.iloc[i-1]['text']+ '\n\n'
+    tags = 'Tags:\n\nBahá\'u\'lláh, Hidden Words, Audiobook, Reading, Bahai Audio Project, Persian Hidden Words # ' + str(i) + ','
+
+    full_desc = title + desc_intro + desc_body + hw + tags
+
+    if (os.path.exists(persian_dir + '\P' + str(i) + '\\')):
+        print('Found folder: P' + str(i))
+        makefile(persian_dir + '\P' + str(i) + '\\', full_desc)
+    elif (os.path.exists(persian_dir + '\D-P' + str(i)+ '\\')):
+        print('Found folder: D-P' + str(i))
+        makefile(persian_dir + '\D-P' + str(i) + '\\', full_desc)
+    else:
+        print('Error: Could not find folder: P' + str(i))
+        print(persian_dir + '\P' + str(i))
+        print(persian_dir + '\D-P' + str(i))
+        
+
+
