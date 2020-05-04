@@ -86,11 +86,11 @@ subfolders[0] = subfolders[0].str.extract(r'(\d{0,4}-\d{0,2}-\d{0,2}.*?)\s')
 
 # I also need to check for files which have already been downloaded but have not yet been recorded so it doesn't donwload them again 
 downloads = pd.DataFrame([f.path for f in os.scandir(path) if f.is_dir()])
-downloads[0] = downloads[0].str.extract(r'(\d{0,4}-\d{0,2}-\d{0,2}.*?)\s')
-
+if (len(downloads) > 0):
+    downloads[0] = downloads[0].str.extract(r'(\d{0,4}-\d{0,2}-\d{0,2}.*?)\s')
+    df = df.loc[~df['date_str'].isin(downloads[0])]
 
 df = df.loc[~df['date_str'].isin(subfolders[0])]
-df = df.loc[~df['date_str'].isin(downloads[0])]
 
 rcount = 0
 for row in df.iterrows():
@@ -105,9 +105,10 @@ for row in df.iterrows():
     
     urlretrieve(row[1]['pdf'],  pdf_path + '\\' + row[1]['date_str']  + '.pdf')
 
+    line0 = 'Audio Reading - Universal House of Justice Message - ' + str(row[1]['stated_date']) + '\n\n'
     line1 = 'This is a reading of the ' + str(row[1]['stated_date']) + ' message from the Universal House of Justice ' + row[1]['recipient'] + ' ' + row[1]['subject'] + '.\n\n'
     line2 = 'The full text of the letter is available online at: ' + row[1]['pdf'] + '\n\n'
-    line3 = 'Read by Soren Sabet Sarvestany'
+    line3 = 'Copyright © Bahá\'í International Community\n\n'
     line4 = 'Universal House of Justice,Audiobook,UHJ messages,Bahai,Audio reading,Bahai Audio Project,English Audio Reading,' + row[1]['date_str'] + ',' + row[1]['subject']
     
     
@@ -117,6 +118,7 @@ for row in df.iterrows():
 #    print(line4)
         
     with io.open(pdf_path + '\\' + 'text_file.txt', "w", encoding="utf-8") as f:
+        f.write(line0)
         f.write(line1)
         f.write('')
         f.write(line2)
@@ -124,7 +126,7 @@ for row in df.iterrows():
         f.write(line3)
         f.write('')
         f.write('')
-        f.write('Tags: ')
+        f.write('')
         f.write(line4)
     
     
